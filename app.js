@@ -3,6 +3,7 @@ var cookieParser = require('cookie-parser');
 var bodyParser = require('body-parser');
 var querystring = require("querystring");
 var http = require("http");
+var https = require("https");
 var app = express();
 var server = require('http').createServer(app);
 var conn = require('./db.js')
@@ -10,9 +11,11 @@ var async = require('async')
 var util = require("util");
 var url = require('url');
 var host = "localhost";
+var iconv = require("iconv-lite");
 //39.106.14.209(公)
 //172.17.9.44(私有)
 var port = 7777;
+
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({
@@ -40,19 +43,6 @@ app.all('*', function(req, res, next) {
 	res.header("X-Powered-By", ' 3.2.1');
 	next()
 });
-
-function stealData(url, res) {
-	http.get(url, function(res2) {
-		var data = "";
-		res2.on("data", function(chunk) {
-			data += chunk;
-		});
-		res2.on("end", function() {
-			res.send(data);
-		});
-
-	})
-}
 
 
 
@@ -131,27 +121,131 @@ app.get('/categories', (req, res) => {
 app.get('/sub-categories', (req, res) => {
 	stealData("http://novel.juhe.im/sub-categories", res);
 })
-//////////////////////////////////////////////
-//获取分类详情
-app.get("/books", (req, res) => {
-	var major = req.query.major;
-	conn.getDb(function(err, db) {
-		var books = db.collection("books");
-		books.find({major},{}).toArray(function(err,result){
-			if(err) throw err;
-			res.send(result[0].data.data);
-			db.close();
-		})
-	})
-})
-
 //书单
 app.get('/book-list', (req, res) => {
 	stealData("http://api.zhuishushenqi.com/book-list", res);
 })
 
+///////////////////////////////////////////
+//电影项目
+///////////////////////////////////////////
 
 
+//主页 接口
+app.get('/movieindex', (req, res) => {
+	var options = { 
+		hostname: 'apis.vcinema.cn',
+		port:"8446",
+		path: '/v3.0/rest/home/getHomePhoneResource/1/0/20?channels=aph10&appVersion=4.4.8&platform=1&deviceUUID=99000873473232&deviceModel=MI%20MAX&deviceVersion=Android_7.0&area=%E5%9B%9B%E5%B7%9D%E7%9C%81&city=%E6%88%90%E9%83%BD%E5%B8%82&phone=',
+		rejectUnauthorized: false  // 忽略安全警告
+	};
+	getHttpsData(options,res);
+})
+
+
+
+//主页 ===》  更多 接口
+// categoryid : 分类id
+app.get('/movieindex/more/:categoryid', (req, res) => {
+	//console.log(req.params.categoryid)
+	var categoryid = req.params.categoryid;
+	var options = { 
+		hostname: 'apis.vcinema.cn',
+		port:"8446",
+		path: '/v3.0/rest/movie/getMovieListByCategoryId/0/'+categoryid+'/0/30/1?channels=aph10&appVersion=4.4.8&platform=1&deviceUUID=99000873473232&deviceModel=MI%20MAX&deviceVersion=Android_7.0&area=%E5%9B%9B%E5%B7%9D%E7%9C%81&city=%E6%88%90%E9%83%BD%E5%B8%82',
+		rejectUnauthorized: false  // 忽略安全警告
+	};
+	getHttpsData(options,res);
+})
+
+//发现接口
+app.get('/moviefind', (req, res) => {
+	//console.log(req.params.categoryid)
+	var categoryid = req.params.categoryid;
+	var options = { 
+		hostname: 'apis.vcinema.cn',
+		port:"8446",
+		path: '/v3.0/rest/shortVideo/getShortVideoList/1/0/15/aph10?channels=aph10&appVersion=4.4.8&platform=1&deviceUUID=99000873473232&deviceModel=MI%20MAX&deviceVersion=Android_7.0&area=%E5%9B%9B%E5%B7%9D%E7%9C%81&city=%E6%88%90%E9%83%BD%E5%B8%82&phone=',
+		rejectUnauthorized: false  // 忽略安全警告
+	};
+	getHttpsData(options,res);
+})
+
+//分类列表
+//asc: 0（电影列表排序。 0：表示进来默认排序;1:表示最新上线;2：流行热度;3：IMDb评分）
+//categoryid: 分类id
+app.get('/movie/:categoryid/:asc', (req, res) => {
+	var {categoryid,asc} = req.params;
+	var options = { 
+		hostname: 'apis.vcinema.cn',
+		port:"8446",
+		path: '/v3.0/rest/movie/getMovieListByCategoryIdAndSortType/0/'+categoryid+'/0/30/1/'+asc+'?channels=aph10&appVersion=4.4.8&platform=1&deviceUUID=99000873473232&deviceModel=MI%20MAX&deviceVersion=Android_7.0&area=%E5%9B%9B%E5%B7%9D%E7%9C%81&city=%E6%88%90%E9%83%BD%E5%B8%82&phone=',
+		rejectUnauthorized: false  // 忽略安全警告
+	};
+	getHttpsData(options,res);
+})
+
+//详情
+app.get('/moviedetail/:movieid', (req, res) => {
+	var {movieid} = req.params;
+	var options = { 
+		hostname: 'apis.vcinema.cn',
+		port:"8446",
+		path: '/v3.0/rest/movie/queryMovieById/0/'+movieid+'/1?channels=aph10&appVersion=4.4.8&platform=1&deviceUUID=99000873473232&deviceModel=MI%20MAX&deviceVersion=Android_7.0&area=%E5%9B%9B%E5%B7%9D%E7%9C%81&city=%E6%88%90%E9%83%BD%E5%B8%82&phone=',
+		rejectUnauthorized: false  // 忽略安全警告
+	};
+	getHttpsData(options,res);
+})
+
+
+
+/*https.get("&phone=",(res2)=>{
+	var data = "";
+	res2.on("data", function(chunk) {
+		data += chunk;
+	});
+	res2.on("end", function() {
+		console.log(data)
+	});
+})*/
+
+
+
+
+
+//http 接口
+function getHttpsData(options,res){
+	https.get(options, function (res2) {  
+		var datas = [];  
+		var size = 0;  
+		res2.on('data', function (data) {  
+			datas.push(data);  
+			size += data.length;  
+		//process.stdout.write(data);  
+		});  
+		res2.on("end", function () {  
+			var buff = Buffer.concat(datas, size);  
+			var result = iconv.decode(buff, "utf8");//转码//var result = buff.toString();//不需要转编码,直接tostring  
+			res.send(result);
+		});  
+	})
+}
+
+
+
+
+function stealData(url, res) {
+	http.get(url, function(res2) {
+		var data = "";
+		res2.on("data", function(chunk) {
+			data += chunk;
+		});
+		res2.on("end", function() {
+			res.send(data);
+		});
+
+	})
+}
 
 server.listen(port, host, () => {
 	console.log(`Server is runing at ${host}:${port}`)

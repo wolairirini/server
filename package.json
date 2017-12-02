@@ -4,6 +4,7 @@
     "body-parser": "^1.18.2",
     "cookie-parser": "^1.4.3",
     "express": "^4.16.2",
+    "iconv-lite": "^0.4.19",
     "mongodb": "^2.2.33",
     "url": "^0.11.0",
     "util": "^0.10.3"
